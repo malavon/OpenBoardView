@@ -17,8 +17,9 @@
 // Looking at the paper the algo is straight forward, not sure about endianness.
 // This will put out some .bin file you would decompress using zlib.
 
-static inline uint32_t rotl32(uint32_t a, int32_t b) {
-	return (a << b) | (a >> (32 - b));
+static inline uint32_t rotl32(uint32_t a, uint32_t b) {
+    b &= 31;
+    return b ? ((a << b) | (a >> (32 - b))) : a;
 }
 
 template<size_t N>
