@@ -146,10 +146,13 @@ namespace Tebo
         Const1 = r.ReadU32();
         Customer = r.ReadString255();
         DecodeString(Customer);
-        Const2 = r.ReadU8();
+        Password = r.ReadString255();
         Date = r.ReadString255();
         DecodeString(Date);
-        r.Read(Const3, 3);
+        // r.Read(Const3, 3);
+		H5 = r.ReadString255();
+		H6 = r.ReadString255();
+		H7 = r.ReadString255();
         Size1 = r.ReadU32();
         Size2 = r.ReadU32();
         Size3 = r.ReadU32();
@@ -648,12 +651,22 @@ namespace Tebo
         return std::unique_ptr<Object>(object);
     }
 
-    void ProbeBox32::Load(StreamReader &r)
-    {
-        Tag = r.ReadS32();
-        V1 = r.ReadVec2S();
-        V2 = r.ReadVec2S();
-    }
+	void ProbeBox32::Load(StreamReader &r)
+	{
+	    Tag = r.ReadS32();
+	    R_ASSERT(Tag >= 0 && Tag <= 4096);
+
+	    if (Tag >= 1)
+	        V1 = r.ReadVec2S();
+
+	    if (Tag >= 2)
+	        V2 = r.ReadVec2S();
+
+	    AdditionalVertices.reserve(Tag > 2 ? Tag - 2 : 0);
+
+	    for (int32_t i = 2; i < Tag; ++i)
+	        AdditionalVertices.push_back(r.ReadVec2S());
+	}
 
     void DoubleBox32::Load(StreamReader &r)
     {
@@ -757,12 +770,8 @@ namespace Tebo
         Tail.P1 = r.ReadS32();
         Tail.P2 = r.ReadS32();
         Tail.P3 = r.ReadS32();
-        Tail.B1.Tag = r.ReadS32();
-        Tail.B1.V1 = r.ReadVec2S();
-        Tail.B1.V2 = r.ReadVec2S();
-        Tail.B2.Tag = r.ReadS32();
-        Tail.B2.V1 = r.ReadVec2S();
-        Tail.B2.V2 = r.ReadVec2S();
+		Tail.B1.Load(r);
+		Tail.B2.Load(r);
     }
 
     void ProbeRegistry::Load(StreamReader &r)
@@ -910,6 +919,7 @@ namespace Tebo
             bool const present = r.ReadBool8();
             if (!present)
                 continue;
+			TEBO_LOG("DECAL name=%s sublayer=%u offset=0x%08X\n", Name.c_str(), i, uint32_t(r.Tell()));
             Layers[i] = LoadObject(r);
         }
         OutlineFlag = r.ReadBool8();
@@ -975,6 +985,7 @@ namespace Tebo
         Layers.reserve(Header.LayerCount);
         for (uint32_t li = 0; li < Header.LayerCount; li++)
         {
+			TEBO_LOG("TOP LEVEL layer=%u offset=0x%08X\n", li, uint32_t(r.Tell()));
             std::unique_ptr<Object> layer = LoadObject(r);
             Layers.push_back(std::move(layer));
         }

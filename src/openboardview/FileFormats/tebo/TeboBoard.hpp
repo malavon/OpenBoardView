@@ -226,9 +226,9 @@ namespace Tebo
         std::string Type;
         uint32_t Const1; // = 1
         std::string Customer;
-        uint8_t Const2; // = 0
         std::string Date;
-        uint8_t Const3[3]; // = {0, 0, 0}
+        std::string Password;
+        std::string H5, H6, H7;
         uint32_t Size1;
         uint32_t Size2;
         uint32_t Size3;
@@ -396,6 +396,7 @@ namespace Tebo
     {
         int32_t Tag;
         Vector2S V1, V2;
+        std::vector<Vector2S> AdditionalVertices;
 
         void Load(StreamReader &r);
     };
