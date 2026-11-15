@@ -827,18 +827,26 @@ namespace Tebo
         WorkspaceSize = r.ReadVec2S();
     }
 
-    void FixtureRegistry::Load(StreamReader &r)
-    {
-        Tag1 = r.ReadU32();
-        R_ASSERT(Tag1 == 0);
-        Tag2 = r.ReadU32();
-        R_ASSERT(Tag2 == 7874);
-        Grids.reserve(8);
-        for (uint32_t i = 0; i < 8; i++)
-            Grids.push_back(r.ReadString255());
-        Top.Load(r);
-        Bottom.Load(r);
-    }
+	void FixtureRegistry::Load(StreamReader &r)
+	{
+	    Tag1 = r.ReadU32();
+
+	    R_ASSERT(Tag1 <= 128);
+	    Categories.reserve(Tag1);
+
+	    for (uint32_t i = 0; i < Tag1; ++i)
+	        Categories.push_back(r.ReadString255());
+
+	    Tag2 = r.ReadU32();
+	    R_ASSERT(Tag2 == 7874);
+
+	    Grids.reserve(8);
+	    for (uint32_t i = 0; i < 8; ++i)
+	        Grids.push_back(r.ReadString255());
+
+	    Top.Load(r);
+	    Bottom.Load(r);
+	}
 
     void Pin::Load(StreamReader &r)
     {

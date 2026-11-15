@@ -519,8 +519,9 @@ namespace Tebo
 
     struct FixtureRegistry
     {
-        uint32_t Tag1; // must be 0
-        uint32_t Tag2; // must be 7874
+        uint32_t Tag1;
+        uint32_t Tag2;
+        std::vector<std::string> Categories;
         std::vector<std::string> Grids;
         FixtureSetting Top, Bottom;
 
