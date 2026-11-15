@@ -572,6 +572,16 @@ namespace Tebo
         Zero = r.ReadU32();
     }
 
+    void ThroughLayer::DrillArc::Load(StreamReader &r)
+    {
+        Net = r.ReadS32();
+        Tool = r.ReadU32();
+        Center = r.ReadVec2S();
+        Radius = r.ReadS32();
+        StartAngle = r.ReadFloat();
+        SweepAngle = r.ReadFloat();
+    }
+
     void ThroughLayer::Load(StreamReader &r)
     {
         Object::Load(r);
@@ -617,9 +627,12 @@ namespace Tebo
                 DrillHoles.back().Load(r);
                 continue;
             case 0x0A:
-            case 0x0B:
                 DrillSlots.emplace_back();
                 DrillSlots.back().Load(r);
+                continue;
+            case 0x0B: // arc, not a straight drill slot
+                DrillArcs.emplace_back();
+                DrillArcs.back().Load(r);
                 continue;
             default:
                 R_ASSERT(!"Unrecognized drill code");
@@ -801,14 +814,21 @@ namespace Tebo
         }
     }
 
-    void FixtureVariant::Load(StreamReader &r)
-    {
-        Name = r.ReadString255();
-        ShortName = r.ReadString255();
-        Flag1 = r.ReadBool8();
-        Flag2 = r.ReadBool8();
-        Data.Load(r);
-    }
+	void FixtureVariant::Load(StreamReader &r)
+	{
+	    Name = r.ReadString255();
+	    ShortName = r.ReadString255();
+	    Flag1 = r.ReadBool8();
+
+	    if (!Flag1)
+	    {
+	        Flag2 = false;
+	        return;
+	    }
+
+	    Flag2 = r.ReadBool8();
+	    Data.Load(r);
+	}
 
     void FixtureSetting::Load(StreamReader &r)
     {
@@ -848,15 +868,17 @@ namespace Tebo
 	    Bottom.Load(r);
 	}
 
-    void Pin::Load(StreamReader &r)
+    void Pin::Load(StreamReader &r, bool extended)
     {
         Handle = r.ReadU32();
         Z1 = r.ReadU32();
         R_ASSERT(Z1 == 0);
         Id = r.ReadU32();
         Name = r.ReadString255();
-        Z2 = r.ReadU32();
-        R_ASSERT(Z2 == 0);
+        // Extended records omit the trailing count; intermediate records
+        // instead have a zero dword separator, handled in Part::Load().
+        IsExtended = extended;
+        Z2 = extended ? 0 : r.ReadU32();
     }
 
     void Part::Load(StreamReader &r)
@@ -887,10 +909,30 @@ namespace Tebo
         P2 = r.ReadU32();
         R_ASSERT(P2 == 0);
         Pins.reserve(pinCount);
+        uint32_t extraCount = 0;
         for (uint32_t i = 0; i < pinCount; i++)
         {
             Pins.emplace_back();
             Pins.back().Load(r);
+            R_ASSERT(Pins.back().Z2 <= 100000);
+            R_ASSERT(extraCount <= 100000 - Pins.back().Z2);
+            extraCount += Pins.back().Z2;
+        }
+        if (extraCount)
+        {
+            // One block of opposite-face contacts follows the primary pins.
+            // These records do not have the usual trailing Z2 count.
+            uint32_t const marker = r.ReadU32();
+            uint32_t const reserved = r.ReadU32();
+            R_ASSERT(marker == 2 && reserved == 0);
+            Pins.reserve(Pins.size() + extraCount);
+            for (uint32_t i = 0; i < extraCount; i++)
+            {
+                Pins.emplace_back();
+                Pins.back().Load(r, true);
+                if (i + 1 < extraCount)
+                    R_ASSERT(r.ReadU32() == 0); // inter-record separator
+            }
         }
     }
 
@@ -906,8 +948,20 @@ namespace Tebo
         P5 = r.ReadU8();
         P6 = r.ReadU8();
         r.Read(P7x, 4);
-        r.Read(Flags, 6);
+        // Some Gigabyte writers store four flags here; the original parser
+        // always read six, causing the next field and all parts to misalign.
+        r.Read(Flags, 4);
+        auto const afterFourFlags = static_cast<size_t>(r.Tell());
         P8 = r.ReadU32();
+        FlagCount = 4;
+        if (P8 != 10000)
+        {
+            r.Seek(afterFourFlags);
+            r.Read(Flags + 4, 2);
+            P8 = r.ReadU32();
+            FlagCount = 6;
+        }
+        R_ASSERT(P8 == 10000);
         P9 = r.ReadU32();
         P10 = r.ReadU32();
         P11 = r.ReadU32();

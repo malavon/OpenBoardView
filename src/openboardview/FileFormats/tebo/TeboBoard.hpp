@@ -385,6 +385,17 @@ namespace Tebo
             void Load(StreamReader &r);
         };
         std::vector<DrillSlot> DrillSlots;
+        struct DrillArc
+        {
+            int32_t Net;
+            uint32_t Tool;
+            Vector2S Center;
+            Fixed32 Radius;
+            float StartAngle, SweepAngle;
+
+            void Load(StreamReader &r);
+        };
+        std::vector<DrillArc> DrillArcs;
 
         ThroughLayer() : Object(ObjectType::Through)
         {}
@@ -395,7 +406,7 @@ namespace Tebo
     struct ProbeBox32
     {
         int32_t Tag;
-        Vector2S V1, V2;
+        Vector2S V1{}, V2{};
         std::vector<Vector2S> AdditionalVertices;
 
         void Load(StreamReader &r);
@@ -534,9 +545,10 @@ namespace Tebo
         uint32_t Z1;
         uint32_t Id;
         std::string Name;
-        uint32_t Z2;
+        uint32_t Z2; // extra opposite-face contact count for ordinary pins
+        bool IsExtended = false;
 
-        void Load(StreamReader &r);
+        void Load(StreamReader &r, bool extended = false);
     };
 
     enum class PartType : uint32_t
@@ -599,7 +611,8 @@ namespace Tebo
         bool Flag1, Flag2;
         uint8_t P5, P6;
         uint32_t P7x[4];
-        bool Flags[6];
+        bool Flags[6] = {};
+        uint32_t FlagCount = 0; // 4 or 6 depending on writer
         uint32_t P8; // 10000
         uint32_t P9, P10, P11;
         uint8_t P12, P13;
