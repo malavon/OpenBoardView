@@ -95,13 +95,18 @@ TVWFile::TVWFile(std::vector<char> &buf) {
 			for (Tebo::Pin const &pin : part.Pins) {
 				BRDPin bpin;
 				bpin.part = partIndex;
-				bpin.side = top ? BRDPinSide::Top : BRDPinSide::Bottom;
+				// Extra contacts in Gigabyte TVW connector records refer to
+				// pad handles on the opposite copper face.
+				bool const pinTop = pin.IsExtended ? !top : top;
+				Tebo::LogicLayer *padLayer = pin.IsExtended
+				    ? layerOf(pinTop ? topIdx : botIdx) : layer;
+				bpin.side = pinTop ? BRDPinSide::Top : BRDPinSide::Bottom;
 				bpin.snum = intern(pin.Name);
 				bpin.name = bpin.snum;
 
 				uint32_t const padIdx = pin.Handle / 8;
-				if (padIdx < layer->Pads.size()) {
-					Tebo::Pad const &pad = layer->Pads[padIdx];
+				if (padLayer && padIdx < padLayer->Pads.size()) {
+					Tebo::Pad const &pad = padLayer->Pads[padIdx];
 					bpin.pos = ToPoint(pad.Pos);
 					if (pad.Net >= 0 && static_cast<size_t>(pad.Net) < netPtr.size())
 						bpin.net = netPtr[pad.Net];
